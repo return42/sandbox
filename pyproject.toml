@@ -1,0 +1,65 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+[project]
+
+dynamic = ["version"]  # see [tool.setuptools.dynamic]
+
+name = "pysandbox"
+description = "My python sandbox"
+readme = "README.rst"
+requires-python = ">=3.10"
+license = "AGPL-3.0-or-later"
+license-files = ["LICENSE"]
+keywords = ["sandbox", "development"]
+authors = [
+  {name = "Markus Heiser", email = "markus.heiser@darmarit.de" }
+]
+maintainers = [
+  {name = "Markus Heiser", email = "markus.heiser@darmarit.de" }
+]
+
+classifiers = [
+  # For a list of valid classifiers, see https://pypi.org/classifiers/
+  "Development Status :: 5 - Production/Stable",
+  "Intended Audience :: Developers",
+  "Topic :: Software Development :: Build Tools",
+  "Programming Language :: Python",
+]
+
+dependencies = [
+  "click",
+]
+
+[project.optional-dependencies]
+# pip install -e .[dev,test]
+dev = [
+  "build",
+  "Sphinx",
+]
+test = [
+  "pylint",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/return42/pysandbox"
+"Bug Reports" = "https://github.com/return42/pysandbox/issues"
+"Source" = "https://github.com/return42/pysandbox/"
+
+[project.scripts]
+pysandbox = "pysandbox.cli:main"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["src/"]
+
+[tool.setuptools.package-data]
+# https://setuptools.pypa.io/en/latest/userguide/datafiles.html
+pysandbox = ["*.dat", "*/*.dat", "*/*/*.dat"]
+
+[tool.setuptools.dynamic]
+version = {attr = "pysandbox.__pkginfo__.VERSION"}
+
+[build-system]
+requires = ["setuptools>=68.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
