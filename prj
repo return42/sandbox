@@ -1,0 +1,103 @@
+#!/usr/bin/env bash
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+# export LANG=C
+PRJ_ROOT="$(dirname "${BASH_SOURCE[0]}")"
+PRJ_ROOT="$(cd "${PRJ_ROOT}" && pwd -P)"
+
+# shellcheck source=scripts/main.sh
+source "${PRJ_ROOT}/scripts/main.sh"
+# shellcheck source=scripts/lib_py.sh
+scripts.import py
+
+help() {
+    cat <<EOF
+env.build   : build project's developer environment
+cmd         : run command in project's environment
+clean       : clean up project folder
+EOF
+}
+
+[ "${V}" = "1" ] && set -x
+
+env.build() {
+    py.env.build
+    # https://setuptools.pypa.io/en/latest/userguide/development_mode.html
+    "${PY_VENV}/bin/pip" install -e ".[dev,test]"
+
+    env.build.post
+}
+
+
+env.build.post() {
+    env.source
+    _PYSANDBOX_COMPLETE=bash_source pysandbox > "${PY_VENV}/bin/.pysandbox-complete.bash"
+    _PYSANDBOX_COMPLETE=zsh_source pysandbox  > "${PY_VENV}/bin/.pysandbox-complete.zsh"
+    _PYSANDBOX_COMPLETE=fish_source pysandbox > "${PY_VENV}/bin/.pysandbox-complete.fish"
+}
+
+
+env.source() {
+    py.env.activate
+}
+
+
+cmd() {
+    (   set -e
+	env.source
+        "$@"
+    )
+    dump_return $?
+}
+
+
+clean() {
+    (   set -e
+	msg.build CLEAN "clean up project folder"
+	py.clean
+    )
+    dump_return $?
+}
+
+
+test() {
+    (   set -e
+	msg.build TEST "shellcheck ./prj"
+	shellcheck -x -s bash ./prj
+	msg.build TEST "shellcheck ./src/dot.files/.bashrc"
+	shellcheck -x -s bash src/dot.files/.bashrc
+	msg.build TEST "pylint ./src"
+	cmd pylint ./src
+    )
+    dump_return $?
+}
+
+
+shell() {
+    (   set -e
+	env.source
+        bash --rcfile <(
+	    cat "${PY_VENV}/bin/.pysandbox-complete.bash";
+	)
+    )
+    dump_return $?
+}
+
+SHFMT_SCRIPTS=("./")
+
+format.shell() {
+    msg.build TEST "[format.shfmt] shfmt ${SHFMT_SCRIPTS[*]}"
+    shfmt --list --write "${SHFMT_SCRIPTS[@]}"
+    dump_return $?
+}
+
+BLACK_TARGETS=("./src")
+BLACK_OPTIONS=("--target-version" "py313" "--line-length" "120")
+
+format.python() {
+    msg.build TEST "[format.python] black ${BLACK_TARGETS[*]}"
+    black "${BLACK_OPTIONS[@]}" "${BLACK_TARGETS[@]}"
+    dump_return $?
+}
+
+main "$@"

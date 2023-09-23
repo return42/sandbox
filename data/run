@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+DATA="$(dirname "${BASH_SOURCE[0]}")"
+DATA="$(cd "${DATA}" && pwd -P)"
+
+PRJ_ROOT="$(cd "${DATA}"/.. && pwd -P)"
+BUILD="${DATA}/.build"
+
+# shellcheck source=../scripts/main.sh
+source "${PRJ_ROOT}/scripts/main.sh"
+scripts.import py
+
+help() {
+    cat <<EOF
+test.all    : run all tests
+clean       : clean up tests
+EOF
+}
+
+[ "${V}" = "1" ] && set -x
+
+test.all() {
+    (   set -e
+    )
+    dump_return $?
+}
+
+clean() {
+    (   set -e
+	rm -rf "${BUILD}"
+    )
+    dump_return $?
+}
+
+main "$@"
