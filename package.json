@@ -1,0 +1,9 @@
+{
+  "dependencies": {
+    "eslint": "^8.50.0",
+    "pyright": "^1.1.328"
+  },
+  "scripts": {
+    "clean": "rm -rf node_modules package-lock.json"
+  }
+}
