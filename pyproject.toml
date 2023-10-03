@@ -27,6 +27,7 @@ classifiers = [
 
 dependencies = [
   "click",
+  "pydnsbl",
 ]
 
 [project.optional-dependencies]
