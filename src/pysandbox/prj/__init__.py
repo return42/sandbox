@@ -4,3 +4,4 @@
 from . import _cli
 from . import words
 from . import pydnsbl
+from . import iplists
