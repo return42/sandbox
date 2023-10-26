@@ -1,0 +1,23 @@
+[tools]
+"github:kristoff-it/superhtml" = "latest"
+"pipx:detachhead/basedpyright" = "latest"
+"pipx:psf/black" = "latest"
+go = "latest"
+hatch = "latest"
+jq = "latest"
+node = "latest"
+pipx = "latest"
+python = "latest"
+ruff = "latest"
+rust = "latest"
+shellcheck = "latest"
+shfmt = "latest"
+usage = "latest"
+uv = "latest"
+
+[settings]
+experimental = true
+idiomatic_version_file_enable_tools = []
+
+[settings.python]
+compile = false
