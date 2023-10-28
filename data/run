@@ -6,6 +6,9 @@ DATA="$(cd "${DATA}" && pwd -P)"
 
 PRJ_ROOT="$(cd "${DATA}"/.. && pwd -P)"
 BUILD="${DATA}/.build"
+IPLISTS="${DATA}/iplists"
+LOG_FILES="${LOG_FILES=-./*.log}"
+BOT_NETWORKS="${BOT_NETWORKS:-botnet.lst}"
 
 # shellcheck source=../scripts/main.sh
 source "${PRJ_ROOT}/scripts/main.sh"
@@ -13,15 +16,60 @@ scripts.import py
 
 help() {
     cat <<EOF
+botnet.:
+  add       : add networks from \$LOG_FILES/* to file \$BOT_NETWORKS
+                \${LOG_FILES}    : ${LOG_FILES}
+                \${BOT_NETWORKS} : ${BOT_NETWORKS}
 test.all    : run all tests
+  iplists   : test of 'pysandbox prj iplists' command
 clean       : clean up tests
 EOF
 }
 
 [ "${V}" = "1" ] && set -x
 
+
+botnet.add() {
+    (   set -e
+	py.env.activate
+	temp_file_filter="$(mktemp)"
+	# shellcheck disable=SC2086
+	pysandbox prj iplists ip-filter ${LOG_FILES} "${temp_file_filter}"
+
+	if ! [[ -r "${BOT_NETWORKS}" ]]; then
+	    mkdir -p "$(dirname "${BOT_NETWORKS}")"
+	    touch "${BOT_NETWORKS}"
+	fi
+
+	temp_file_merge="$(mktemp)"
+	pysandbox prj iplists ip-filter \
+		  --ipv4-min-pref=8 \
+		  --ipv6-min-pref=24 \
+		  "${BOT_NETWORKS}" "${temp_file_filter}" "${temp_file_merge}"
+	mv "${temp_file_merge}" "${BOT_NETWORKS}"
+	chmod ugo+rw "${BOT_NETWORKS}"
+	msg.info "updated ${BOT_NETWORKS}"
+	rm -f "${temp_file_filter}"
+    )
+    dump_return $?
+}
+
 test.all() {
     (   set -e
+	msg.build TEST iplists
+	test.iplists
+    )
+    dump_return $?
+}
+
+test.iplists() {
+    (   set -e
+ 	py.env.activate
+	mkdir -p "${BUILD}"
+	pysandbox prj iplists ip-filter\
+		  "${IPLISTS}/ip_test_list.txt" \
+		  "${BUILD}/ip_test_list_filtered.txt"
+	diff "${BUILD}/ip_test_list_filtered.txt" "${IPLISTS}/ip_test_list_filtered.txt"
     )
     dump_return $?
 }
