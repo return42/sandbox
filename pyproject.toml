@@ -28,6 +28,7 @@ classifiers = [
 dependencies = [
   "click",
   "netaddr",
+  "requests",
   "pydnsbl",
 ]
 
