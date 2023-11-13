@@ -5,7 +5,7 @@ TOPTARGETS := all clean test build
 # wrap ./run script
 # -----------------
 
-RUN += help clean
+RUN += help clean spamhaus.ASN-DROP
 PHONY += $(RUN)
 $(RUN):
 	@./run $@
