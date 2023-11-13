@@ -7,6 +7,7 @@ DATA="$(cd "${DATA}" && pwd -P)"
 PRJ_ROOT="$(cd "${DATA}"/.. && pwd -P)"
 BUILD="${DATA}/.build"
 IPLISTS="${DATA}/iplists"
+SPAMHAUS="${DATA}/spamhaus"
 LOG_FILES="${LOG_FILES=-./*.log}"
 BOT_NETWORKS="${BOT_NETWORKS:-botnet.lst}"
 
@@ -20,6 +21,8 @@ botnet.:
   add       : add networks from \$LOG_FILES/* to file \$BOT_NETWORKS
                 \${LOG_FILES}    : ${LOG_FILES}
                 \${BOT_NETWORKS} : ${BOT_NETWORKS}
+spamhaus.:
+  ASN-DROP  : IP (CIDR) list from Spamhaus ASN DROP List
 test.all    : run all tests
   iplists   : test of 'pysandbox prj iplists' command
 clean       : clean up tests
@@ -28,6 +31,16 @@ EOF
 
 [ "${V}" = "1" ] && set -x
 
+spamhaus.ASN-DROP() {
+    (   set -e
+	py.env.activate
+	msg.build BUILD "IP (CIDR) list from Spamhaus ASN DROP List"
+	mkdir -p "${SPAMHAUS}"
+	pushd "${SPAMHAUS}" &> /dev/null
+	pysandbox prj whois ASN-DROP
+	popd &> /dev/null
+    )
+}
 
 botnet.add() {
     (   set -e
