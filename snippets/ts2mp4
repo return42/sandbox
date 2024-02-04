@@ -1,0 +1,54 @@
+#!/usr/bin/env python
+
+import pathlib
+import struct
+import string
+import os
+
+# /mnt/72E4-3D8F/REC_0000/META.DAT'
+TS_PVR = pathlib.Path('/mnt/72E4-3D8F')
+
+START = 13
+END = 43
+
+def get_fname(title):
+    # print(title)
+    title = title.replace(':', ' -')
+    valid = "äöüÄÖÜ-_.(), %s%s" % (string.ascii_letters, string.digits)
+    fname = ''
+    for c in title:
+        if c in valid:
+            fname += c
+        # else:
+        #     fname += ' '
+    #fname = fname.replace(' ','_')
+    return fname
+
+
+for meta_file in TS_PVR.glob('REC_*/META.DAT'):
+
+    with open(meta_file, 'rb') as f:
+        buf = f.read()
+
+    if len(buf) < START + END:
+        print(f"skip invalid file {meta_file}")
+        continue
+
+    folder = meta_file.parent
+    records = ['REC.TS',] + [x.name for x in folder.glob('REC.[0-9][0-9]')]
+
+    data = struct.unpack('30s', buf[START:END])
+    title = data[0].rstrip(b'\x00').decode('latin-1')
+
+    # item = {
+    #     'title' : title,
+    #     'folder' : folder,
+    #     'records' : records,
+    # }
+
+    # ffmpeg -i "concat:intermediate1.ts|intermediate2.ts" -c copy output.mp4
+    concat = [ str(folder / x) for x in records]
+    out = folder / get_fname(f'{title}.mp4')
+
+    print("ffmpeg -i 'concat:%s' -c copy '%s'" % ( '|'.join(concat), out ) )
+    os.system("ffmpeg -i 'concat:%s' -c copy '%s'" % ( '|'.join(concat), out ) )
