@@ -17,7 +17,7 @@
 	;; ...
 	))
 
-  (bash-completion-setup)
+  ;; (bash-completion-setup)
   (my-custom-defaults)
   (my-key-bindings)
   (bookmark-bmenu-list)
@@ -44,7 +44,7 @@
    '(quote (dired-recursive-deletes 'top))
    '(savehist-mode t nil (savehist))
    '(show-trailing-whitespace t)
-   '(enable-dir-local-variables nil)
+   ;; '(enable-dir-local-variables nil)
    '(tab-always-indent 'complete)
    '(js-indent-level 2)
    )
@@ -70,6 +70,7 @@
 ;; ----------------------------------------------------------------------
 
 (require 'package)
+(setq package-install-upgrade-built-in t)
 ;; (add-to-list 'package-archives '("gnu"   . "https://elpa.gnu.org/packages/"))
 (add-to-list 'package-archives '("melpa" . "https://melpa.org/packages/"))
 (package-initialize)
@@ -86,7 +87,6 @@
 	dap-mode                ;; https://emacs-lsp.github.io/dap-mode/
 	lsp-mode                ;; https://emacs-lsp.github.io/lsp-mode/
 	lsp-ui                  ;; https://github.com/emacs-lsp/lsp-ui
-	lsp-pyright             ;; https://github.com/emacs-lsp/lsp-pyright
 	realgud                 ;; https://github.com/realgud/realgud
 	company                 ;; http://company-mode.github.io/
 
@@ -99,6 +99,7 @@
 	go-mode                 ;; https://melpa.org/#/go-mode
 	php-mode                ;; https://github.com/emacs-php/php-mode
 	bash-completion         ;; https://github.com/szermatt/emacs-bash-completion
+	paredit                 ;; https://paredit.org/
 
 	;; TXT stuff
 	sphinx-doc              ;; https://github.com/naiquevin/sphinx-doc.el
