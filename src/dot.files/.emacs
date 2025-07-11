@@ -324,20 +324,24 @@ does not exists --> ask to install required packages."
 	))
   )
 
-
 ;; ----------------------------------------------------------------------
 ;; --- tools
 ;; ----------------------------------------------------------------------
 
+(require 'ffap)
+(require 'dired)
+(require 'flyspell)
+
 (defun ofap-dired ()
+  "Open file a point (cursor)."
   (interactive)
   (ofap (dired-get-file-for-visit)))
 
 (defun ofap ( &optional file-name)
   "Open *file-at-point* with it's default application.
 
-Find FILENAME, guessing a default from text around point and open FILENAME with
-the default application of the desktop system:
+Find FILE-NAME, guessing a default from text around point and open
+FILE-NAME with the default application of the desktop system:
 
 * linux: /usr/bin/xdg-open
 * MS-Windows: `w32-shell-execute'
