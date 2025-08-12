@@ -15,41 +15,78 @@
 ;; mise-en-place: https://mise.jdx.dev/installing-mise.html
 ;;
 ;;   $ mise use -g usage go node python shellcheck shfmt
-;;   $ mise use -g jq # https://jqlang.org/
-;;   $ mise use -g rust  # rustup command --> https://www.rust-lang.org/tools/install
-;;   $ mise use -g github:kristoff-it/superhtml  # https://github.com/kristoff-it/superhtml
-;;
-;; Rust Development
-;;
-;;   $ rustup component add rust-analyzer
-;;
-;; Python development:
-;;   $ mise use -g python
-;;
-;;   $ pipx install \
-;;       uv hatch black \
-;;       basedpyright ruff  'python-lsp-server[all]' pylsp-mypy jedi-language-server zuban
-;;
-;; JavaScript development:
-;;   $ mise use -g node
 ;;
 ;;   Configure npm to install global executables to ~/.local/bin and the
 ;;   libraries to ~/.local/lib/node_modules/
 ;;
 ;;   $ npm config set prefix ~/.local
 ;;
+;;   $ mise use -g jq # https://jqlang.org/
+;;   $ mise use -g rust  # rustup command --> https://www.rust-lang.org/tools/install
+;;   $ mise use -g github:kristoff-it/superhtml  # https://github.com/kristoff-it/superhtml
+;;
+;;
+;;   ...
+;;   $ mise self-update
+;;   $ mise upgrade --bump  # Upgrades to latest version, bumping the version in mise.toml
+;;   ...
+;;   $ pipx upgrade-all
+;;   ...
+;;   $ npm update -g
+;;   ...
+;;   $ rustup update
+;;
+;; Python development:
+;;
+;;   $ pipx install \
+;;       uv hatch black \
+;;       basedpyright ruff  'python-lsp-server[all]' pylsp-mypy jedi-language-server zuban
+;;
+;; JavaScript development:
+;;
 ;;   Typescript LSP alternative: vtsls --> https://github.com/yioneko/vtsls
 ;;
 ;;   $ npm install -g typescript-language-server typescript
 ;;   $ npm install -g @vtsls/language-server
 ;;   $ npm install -g eslint eslint-plugin-json
-;;   $ npm install -g vscode-langservers-extracted
 ;;
-;; bash scripting:
+;; Rust Development
+;;
+;;   $ rustup component add rust-analyzer
+;;
+;; Bash scripting:
 ;;
 ;;   $ mise use -g shellcheck shfmt
 ;;   $ npm install -g bash-language-server
+;;
+;; Language Servers
+;;
+;;   $ npm install -g yaml-language-server
+;;   $ npm install -g vscode-langservers-extracted  # html css json eslint
+;;
 
+;; ----------------------------------------------------------------------
+;; https://github.com/radian-software/straight.el
+;; ----------------------------------------------------------------------
+
+(defvar bootstrap-version)
+(let ((bootstrap-file
+       (expand-file-name
+        "straight/repos/straight.el/bootstrap.el"
+        (or (bound-and-true-p straight-base-dir)
+            user-emacs-directory)))
+      (bootstrap-version 7))
+  (unless (file-exists-p bootstrap-file)
+    (with-current-buffer
+        (url-retrieve-synchronously
+         "https://raw.githubusercontent.com/radian-software/straight.el/develop/install.el"
+         'silent 'inhibit-cookies)
+      (goto-char (point-max))
+      (eval-print-last-sexp)))
+  (load bootstrap-file nil 'nomessage))
+
+(straight-use-package 'use-package)
+(setq straight-use-package-by-default t)
 
 ;; ----------------------------------------------------------------------
 ;; --- init this (my/)setup
@@ -61,12 +98,6 @@
 When Emacs has been started for the first time the package directory
 does not exists .. ask to install required packages."
 
-  (if (not (file-exists-p package-user-dir))
-      (when (y-or-n-p "Should Emacs install the required packages?")
-        (my/packages-install)
-        ;; ...
-        ))
-
   ;; (bash-completion-setup)
   (my/custom-defaults)
   (my/key-bindings)
@@ -74,6 +105,13 @@ does not exists .. ask to install required packages."
   (switch-to-buffer "*Bookmark List*")
   (load-theme 'modus-vivendi)
   )
+
+(defun my/display-ansi-colors ()
+  "Render colors in a buffer that contains ASCII color escape codes."
+  (interactive)
+  (require 'ansi-color)
+  (let ((inhibit-read-only t))
+    (ansi-color-apply-on-region (point-min) (point-max))))
 
 ;; ----------------------------------------------------------------------
 ;; --- custom settings
@@ -96,7 +134,6 @@ does not exists .. ask to install required packages."
     '(inhibit-splash-screen t)
     '(js-indent-level 2)
     '(mouse-wheel-tilt-scroll t)
-    '(package-selected-packages my/packages)
     '(quote (dired-recursive-deletes 'top))
     '(save-place-local-mode 1)
     '(savehist-mode t nil (savehist))
@@ -110,7 +147,7 @@ does not exists .. ask to install required packages."
   )
 
 ;; ----------------------------------------------------------------------
-;; --- shortcuts
+;; --- key bindings
 ;; ----------------------------------------------------------------------
 
 (defun my/key-bindings ()
@@ -127,138 +164,174 @@ does not exists .. ask to install required packages."
 ;; --- packages
 ;; ----------------------------------------------------------------------
 
-(require 'package)
-(setq package-install-upgrade-built-in t)
-;; (add-to-list 'package-archives '("gnu"   . "https://elpa.gnu.org/packages/"))
-(add-to-list 'package-archives '("melpa" . "https://melpa.org/packages/"))
-(package-initialize)
-
-(setq my/packages
-  '(
-     use-package             ;; https://github.com/jwiegley/use-package
-     totp                    ;; https://github.com/juergenhoetzel/emacs-totp
-     f                       ;; https://github.com/rejeep/f.el
-     corfu                   ;; https://github.com/minad/corfu
-     elisp-slime-nav         ;; https://github.com/purcell/elisp-slime-nav
-     flycheck                ;; https://www.flycheck.org
-     flycheck-pos-tip        ;; https://github.com/flycheck/flycheck-pos-tip
-     dap-mode                ;; https://emacs-lsp.github.io/dap-mode/
-     lsp-mode                ;; https://emacs-lsp.github.io/lsp-mode/
-     lsp-ui                  ;; https://github.com/emacs-lsp/lsp-ui
-     realgud                 ;; https://github.com/realgud/realgud
-     company                 ;; http://company-mode.github.io/
-     treesit-auto            ;; https://github.com/renzmann/treesit-auto
-
-     ;; https://github.com/emacs-tree-sitter/tree-sitter-langs/issues/1120
-     ;; tree-sitter-langs       ;; https://github.com/emacs-tree-sitter/tree-sitter-langs
-
-     mise                    ;; https://github.com/eki3z/mise.el
-
-     yaml-mode               ;; https://github.com/yoshiki/yaml-mode
-     apache-mode             ;; https://github.com/emacs-php/apache-mode
-     nginx-mode              ;; https://github.com/ajc/nginx-mode
-     json-mode               ;; https://github.com/json-emacs/json-mode
-     lua-mode                ;; https://github.com/immerrr/lua-mode
-     powershell              ;; https://github.com/jschaf/powershell.el
-     go-mode                 ;; https://melpa.org/#/go-mode
-     php-mode                ;; https://github.com/emacs-php/php-mode
-     bash-completion         ;; https://github.com/szermatt/emacs-bash-completion
-     paredit                 ;; https://paredit.org/
-
-     graphql-mode            ;; https://github.com/davazp/graphql-mode
-
-     ;; TXT stuff
-     sphinx-doc              ;; https://github.com/naiquevin/sphinx-doc.el
-     el2markdown             ;; https://github.com/Lindydancer/el2markdown
-     markdown-mode           ;; https://jblevins.org/projects/markdown-mode/
-     jinja2-mode             ;; https://github.com/paradoxxxzero/jinja2-mode
-     web-mode                ;; https://github.com/fxbois/web-mode
-     graphviz-dot-mode       ;; https://ppareit.github.io/graphviz-dot-mode/
-
-     ;; SCM
-     magit                   ;; https://github.com/magit/magit
-     gitconfig               ;; https://github.com/tonini/gitconfig.el
-     editorconfig            ;; https://editorconfig.org/
-
-     ;; JavaScript
-     js2-mode                ;; https://github.com/mooz/js2-mode
-
-     ;; Python Stuff
-     pet                     ;; https://github.com/wyuenho/emacs-pet
-     pydoc                   ;; https://github.com/statmobile/pydoc
-     pylint                  ;; https://github.com/emacsorphanage/pylint
-     ;; pyvenv                  ;; https://github.com/jorgenschaefer/pyvenv
-     pyvenv-auto             ;; https://github.com/nryotaro/pyvenv-auto
-     pip-requirements        ;; https://github.com/Wilfred/pip-requirements.el
-     lsp-pyright             ;; https://github.com/emacs-lsp/lsp-pyright
-
-     ;; Dictionaries
-     leo                     ;; https://github.com/mtenders/emacs-leo
-     dictcc                  ;; https://github.com/martenlienen/dictcc.el
-
-     ;; eye candy
-     nord-theme              ;; https://github.com/nordtheme/emacs
-     wildcharm-theme         ;; https://github.com/habamax/wildcharm-theme
-
-     ;; entertainment
-     ;;empv                    ;; https://github.com/isamert/empv.el
-        )
-  )
-
-(defun my/packages-install ()
-  "Install 'my/packages'."
-  (interactive)
-  (package-list-packages)
-  (setq package-selected-packages my/packages)
-  (package-install-selected-packages)
-  (message "my/packages installed, to update use: M-x my/packages-update")
-  )
-
-(defun my/packages-update ()
-  "Update 'my/packages'."
-  (interactive)
-  (package-upgrade-all)
-  (package-autoremove)
-  )
-
-(defun my/display-ansi-colors ()
-  "Render colors in a buffer that contains ASCII color escape codes."
-  (interactive)
-  (require 'ansi-color)
-  (let ((inhibit-read-only t))
-    (ansi-color-apply-on-region (point-min) (point-max))))
+(use-package tab-bookmark
+ :straight (:host github :repo "minad/tab-bookmark" :files (:defaults "*"))
+)
 
 
-;; ----------------------------------------------------------------------
-(my/setup-init)
-;; ----------------------------------------------------------------------
+;; Enable rich annotations using the Marginalia package
+(use-package marginalia
+  ;; Bind `marginalia-cycle' locally in the minibuffer.  To make the binding
+  ;; available in the *Completions* buffer, add it to the
+  ;; `completion-list-mode-map'.
+  :bind (:map minibuffer-local-map
+         ("M-A" . marginalia-cycle))
 
-;; https://github.com/renzmann/.emacs.d?tab=readme-ov-file#render-ascii-color-escape-codes
-(add-hook 'compilation-filter-hook #'my/display-ansi-colors)
-(add-hook 'eshell-preoutput-filter-functions  #'ansi-color-apply)
-(add-hook 'before-save-hook 'delete-trailing-whitespace)
+  ;; The :init section is always executed.
+  :init
 
-(add-hook 'text-mode-hook #'hl-line-mode)
-(add-hook 'org-mode-hook #'hl-line-mode)
-(add-hook 'prog-mode-hook #'hl-line-mode)
-
-(add-hook 'prog-mode-hook #'flymake-mode)
-(add-hook 'prog-mode-hook #'flyspell-prog-mode)
-(add-hook 'prog-mode-hook 'electric-pair-local-mode)
-(add-hook 'prog-mode-hook 'show-paren-local-mode)
-
-;; https://github.com/renzmann/.emacs.d?tab=readme-ov-file#pyright-error-links-in-compilation
-(with-eval-after-load 'compile
-  (add-to-list 'compilation-error-regexp-alist-alist
-    '(pyright "^[[:blank:]]+\\(.+\\):\\([0-9]+\\):\\([0-9]+\\).*$" 1 2 3))
-  (add-to-list 'compilation-error-regexp-alist 'pyright))
+  ;; Marginalia must be activated in the :init section of use-package such that
+  ;; the mode gets enabled right away. Note that this forces loading the
+  ;; package.
+  (marginalia-mode))
 
 
-;; ----------------------------------------------------------------------
-;; --- use-package
-;; ----------------------------------------------------------------------
+;; Example configuration for Consult
+(use-package consult
+  ;; Replace bindings. Lazily loaded by `use-package'.
+  :bind (;; C-c bindings in `mode-specific-map'
+         ("C-c M-x" . consult-mode-command)
+         ("C-c h" . consult-history)
+         ("C-c k" . consult-kmacro)
+         ("C-c m" . consult-man)
+         ("C-c i" . consult-info)
+         ([remap Info-search] . consult-info)
+         ;; C-x bindings in `ctl-x-map'
+         ("C-x M-:" . consult-complex-command)     ;; orig. repeat-complex-command
+         ("C-x b" . consult-buffer)                ;; orig. switch-to-buffer
+         ("C-x 4 b" . consult-buffer-other-window) ;; orig. switch-to-buffer-other-window
+         ("C-x 5 b" . consult-buffer-other-frame)  ;; orig. switch-to-buffer-other-frame
+         ("C-x t b" . consult-buffer-other-tab)    ;; orig. switch-to-buffer-other-tab
+         ("C-x r b" . consult-bookmark)            ;; orig. bookmark-jump
+         ("C-x p b" . consult-project-buffer)      ;; orig. project-switch-to-buffer
+         ;; Custom M-# bindings for fast register access
+         ("M-#" . consult-register-load)
+         ("M-'" . consult-register-store)          ;; orig. abbrev-prefix-mark (unrelated)
+         ("C-M-#" . consult-register)
+         ;; Other custom bindings
+         ("M-y" . consult-yank-pop)                ;; orig. yank-pop
+         ;; M-g bindings in `goto-map'
+         ("M-g e" . consult-compile-error)
+         ("M-g f" . consult-flymake)               ;; Alternative: consult-flycheck
+         ("M-g g" . consult-goto-line)             ;; orig. goto-line
+         ("M-g M-g" . consult-goto-line)           ;; orig. goto-line
+         ("M-g o" . consult-outline)               ;; Alternative: consult-org-heading
+         ("M-g m" . consult-mark)
+         ("M-g k" . consult-global-mark)
+         ("M-g i" . consult-imenu)
+         ("M-g I" . consult-imenu-multi)
+         ;; M-s bindings in `search-map'
+         ("M-s d" . consult-find)                  ;; Alternative: consult-fd
+         ("M-s c" . consult-locate)
+         ("M-s g" . consult-grep)
+         ("M-s G" . consult-git-grep)
+         ("M-s r" . consult-ripgrep)
+         ("M-s l" . consult-line)
+         ("M-s L" . consult-line-multi)
+         ("M-s k" . consult-keep-lines)
+         ("M-s u" . consult-focus-lines)
+         ;; Isearch integration
+         ("M-s e" . consult-isearch-history)
+         :map isearch-mode-map
+         ("M-e" . consult-isearch-history)         ;; orig. isearch-edit-string
+         ("M-s e" . consult-isearch-history)       ;; orig. isearch-edit-string
+         ("M-s l" . consult-line)                  ;; needed by consult-line to detect isearch
+         ("M-s L" . consult-line-multi)            ;; needed by consult-line to detect isearch
+         ;; Minibuffer history
+         :map minibuffer-local-map
+         ("M-s" . consult-history)                 ;; orig. next-matching-history-element
+         ("M-r" . consult-history))                ;; orig. previous-matching-history-element
+
+  ;; Enable automatic preview at point in the *Completions* buffer. This is
+  ;; relevant when you use the default completion UI.
+  :hook (completion-list-mode . consult-preview-at-point-mode)
+
+  ;; The :init configuration is always executed (Not lazy)
+  :init
+
+  ;; Tweak the register preview for `consult-register-load',
+  ;; `consult-register-store' and the built-in commands.  This improves the
+  ;; register formatting, adds thin separator lines, register sorting and hides
+  ;; the window mode line.
+  (advice-add #'register-preview :override #'consult-register-window)
+  (setq register-preview-delay 0.5)
+
+  ;; Use Consult to select xref locations with preview
+  (setq xref-show-xrefs-function #'consult-xref
+        xref-show-definitions-function #'consult-xref)
+
+  ;; Configure other variables and modes in the :config section,
+  ;; after lazily loading the package.
+  :config
+
+  ;; Optionally configure preview. The default value
+  ;; is 'any, such that any key triggers the preview.
+  ;; (setq consult-preview-key 'any)
+  ;; (setq consult-preview-key "M-.")
+  ;; (setq consult-preview-key '("S-<down>" "S-<up>"))
+  ;; For some commands and buffer sources it is useful to configure the
+  ;; :preview-key on a per-command basis using the `consult-customize' macro.
+  (consult-customize
+   consult-theme :preview-key '(:debounce 0.2 any)
+   consult-ripgrep consult-git-grep consult-grep consult-man
+   consult-bookmark consult-recent-file consult-xref
+   consult--source-bookmark consult--source-file-register
+   consult--source-recent-file consult--source-project-recent-file
+   ;; :preview-key "M-."
+   :preview-key '(:debounce 0.4 any))
+
+  ;; Optionally configure the narrowing key.
+  ;; Both < and C-+ work reasonably well.
+  (setq consult-narrow-key "<") ;; "C-+"
+
+  ;; Optionally make narrowing help available in the minibuffer.
+  ;; You may want to use `embark-prefix-help-command' or which-key instead.
+  ;; (keymap-set consult-narrow-map (concat consult-narrow-key " ?") #'consult-narrow-help)
+)
+
+;; Enable Vertico.
+(use-package vertico
+  :custom
+  ;; (vertico-scroll-margin 0) ;; Different scroll margin
+  ;; (vertico-count 20) ;; Show more candidates
+  (vertico-resize t) ;; Grow and shrink the Vertico minibuffer
+  ;; (vertico-cycle t) ;; Enable cycling for `vertico-next/previous'
+  :init
+  (vertico-mode))
+
+;; Persist history over Emacs restarts. Vertico sorts by history position.
+(use-package savehist
+  :init
+  (savehist-mode))
+
+;; Emacs minibuffer configurations.
+(use-package emacs
+  :custom
+  ;; Enable context menu. `vertico-multiform-mode' adds a menu in the minibuffer
+  ;; to switch display modes.
+  (context-menu-mode t)
+  ;; Support opening new minibuffers from inside existing minibuffers.
+  (enable-recursive-minibuffers t)
+  ;; Hide commands in M-x which do not work in the current mode.  Vertico
+  ;; commands are hidden in normal buffers. This setting is useful beyond
+  ;; Vertico.
+  (read-extended-command-predicate #'command-completion-default-include-p)
+  ;; Do not allow the cursor in the minibuffer prompt
+  (minibuffer-prompt-properties
+   '(read-only t cursor-intangible t face minibuffer-prompt)))
+
+(use-package orderless
+  :custom
+  ;; Configure a custom style dispatcher (see the Consult wiki)
+  ;; (orderless-style-dispatchers '(+orderless-consult-dispatch orderless-affix-dispatch))
+  ;; (orderless-component-separator #'orderless-escapable-split-on-space)
+  (completion-styles '(orderless basic))
+  (completion-category-defaults nil)
+  (completion-category-overrides '((file (styles partial-completion)))))
+
 
 (use-package dired
+  :straight nil
   :ensure nil
   :init
   (put 'dired-find-alternate-file 'disabled nil)
@@ -266,24 +339,10 @@ does not exists .. ask to install required packages."
   ( :map dired-mode-map
     ("o" . ofap-dired)))
 
+;; https://editorconfig.org/
 (use-package editorconfig
   :config
   (editorconfig-mode 1))
-
-(use-package pet
-  :config
-  (add-hook 'python-base-mode-hook 'pet-mode -10))
-
-;; (use-package tree-sitter-langs
-;;   :ensure t
-;;   :after tree-sitter)
-
-(use-package treesit-auto
-  :custom
-  (treesit-auto-install 'prompt)
-  :config
-  (treesit-auto-add-to-auto-mode-alist 'all)
-  (global-treesit-auto-mode))
 
 (use-package eglot
   :bind
@@ -325,28 +384,7 @@ does not exists .. ask to install required packages."
              ))))
   )
 
-;; (use-package lsp-mode
-;;   :commands lsp
-;;   :hook
-;;   ((c++-mode python-mode java-mode js-mode js2-mode) . lsp-deferred))
-;;   :custom
-;;   (add-hook 'lsp-mode-hook 'lsp-ui-mode) ;; Optional, see below
-;;   (add-hook 'go-mode-hook #'lsp-deferred))
-
-;; (use-package lsp-ui
-;;   :commands lsp-ui-mode
-;;   :config
-;;   (setq lsp-ui-doc-enable nil)
-;;   (setq lsp-ui-doc-header t)
-;;   (setq lsp-ui-doc-include-signature t)
-;;   (setq lsp-ui-doc-border (face-foreground 'default))
-;;   (setq lsp-ui-sideline-show-code-actions t)
-;;   (setq lsp-ui-sideline-delay 0.05)
-;;   :custom
-;;   (lsp-ui-peek-always-show t)
-;;   (lsp-ui-sideline-show-hover t)
-;;   (lsp-ui-doc-enable nil))
-
+;; https://github.com/eki3z/mise.el
 (use-package mise
   ;; :hook
 
@@ -372,6 +410,7 @@ does not exists .. ask to install required packages."
     ("M-<". company-select-first)
     ("M->". company-select-last)))
 
+;; https://github.com/magit/magit
 (use-package magit
   :commands magit-status magit--handle-bookmark
   :bind
@@ -391,18 +430,128 @@ does not exists .. ask to install required packages."
     ("<f8>" . dap-next)
     ("<f9>" . dap-continue)))
 
+;; https://www.flycheck.org
+(use-package flycheck
+  :init (global-flycheck-mode))
+;; https://github.com/flycheck/flycheck-pos-tip
+(use-package flycheck-pos-tip)
+
+;; https://github.com/rejeep/f.el
+(use-package f)
+
+;; https://github.com/minad/corfu
+(use-package corfu)
+
+;; https://github.com/purcell/elisp-slime-nav
+(use-package elisp-slime-nav)
+
+;; https://emacs-lsp.github.io/dap-mode/
+(use-package dap-mode
+  :config
+  (dap-auto-configure-mode)
+  :bind
+  ( :map global-map
+    ("<f7>" . dap-step-in)
+    ("<f8>" . dap-next)
+    ("<f9>" . dap-continue)))
+
+;; https://emacs-lsp.github.io/lsp-mode/
+;; (use-package lsp-mode
+;;   :commands lsp
+;;   :hook
+;;   ((c++-mode python-mode java-mode js-mode js2-mode) . lsp-deferred))
+;;   :custom
+;;   (add-hook 'lsp-mode-hook 'lsp-ui-mode) ;; Optional, see below
+;;   (add-hook 'go-mode-hook #'lsp-deferred))
+
+;; https://github.com/emacs-lsp/lsp-ui
+;; (use-package lsp-ui
+;;   :commands lsp-ui-mode
+;;   :config
+;;   (setq lsp-ui-doc-enable nil)
+;;   (setq lsp-ui-doc-header t)
+;;   (setq lsp-ui-doc-include-signature t)
+;;   (setq lsp-ui-doc-border (face-foreground 'default))
+;;   (setq lsp-ui-sideline-show-code-actions t)
+;;   (setq lsp-ui-sideline-delay 0.05)
+;;   :custom
+;;   (lsp-ui-peek-always-show t)
+;;   (lsp-ui-sideline-show-hover t)
+;;   (lsp-ui-doc-enable nil))
+
+;; https://github.com/realgud/realgud
+(use-package realgud)
+
+;; https://github.com/szermatt/emacs-bash-completion
+(use-package bash-completion)
+
+;; https://paredit.org/
+(use-package paredit)
+
+;; https://github.com/emacs-php/apache-mode
+(use-package apache-mode)
+
+;; https://github.com/ajc/nginx-mode
+(use-package nginx-mode)
+
+;; ----------
+;; treesit.el
+;; ----------
+
+;; https://github.com/renzmann/treesit-auto
+(use-package treesit-auto
+  :config
+  (treesit-auto-add-to-auto-mode-alist 'all)
+  (global-treesit-auto-mode))
+
+;; https://github.com/emacs-tree-sitter/treesit-langs
+(use-package treesit-langs
+ :straight (:host github :repo "emacs-tree-sitter/treesit-langs" :files (:defaults "*"))
+)
+;; https://github.com/kiennq/treesit-langs
+;; (use-package treesit-langs
+;;   :straight (:host github :repo "kiennq/treesit-langs" :files (:defaults "*"))
+;;   )
+
+;; https://github.com/emacs-tree-sitter/tree-sitter-langs/issues/1120
+;;(use-package tree-sitter-langs)
+
+;; ------------
+;; Python Stuff
+;; ------------
+
 (use-package python
   :config
   (require 'eglot)
   (setq python-check-command "uv run ruff format && uv run ruff check --fix")
+  ;;(add-hook 'python-mode-hook #'flymake-mode)
+  ;;(add-hook 'python-ts-mode-hook #'flymake-mode)
   )
-;;(add-hook 'python-mode-hook #'flymake-mode)
-;;(add-hook 'python-ts-mode-hook #'flymake-mode))
 
-;; (use-package js2-mode
-;;   :mode ("\\.js\\'"
-;;          "\\.jsx\\'"))
+;; https://github.com/wyuenho/emacs-pet
+(use-package pet
+  :config
+  (add-hook 'python-base-mode-hook 'pet-mode -10))
 
+;; https://github.com/statmobile/pydoc
+(use-package pydoc)
+
+;; https://github.com/emacsorphanage/pylint
+(use-package pylint)
+
+;; https://github.com/jorgenschaefer/pyvenv
+;; (use-package pyvenv)
+
+;; https://github.com/nryotaro/pyvenv-auto
+(use-package pyvenv-auto)
+
+;; https://github.com/Wilfred/pip-requirements.el
+(use-package pip-requirements)
+
+;; https://github.com/emacs-lsp/lsp-pyright
+(use-package lsp-pyright)
+
+;; https://github.com/fxbois/web-mode
 (use-package web-mode
   :custom
   (web-mode-markup-indent-offset 2)
@@ -417,8 +566,59 @@ does not exists .. ask to install required packages."
        ))
   )
 
-(use-package flycheck
-  :init (global-flycheck-mode))
+
+
+;; ------------
+;; Dictionaries
+;; ------------
+
+;; https://github.com/mtenders/emacs-leo
+(use-package leo)
+
+;; https://github.com/martenlienen/dictcc.el
+(use-package dictcc)
+
+;; ---------
+;; eye candy
+;; ---------
+
+;; https://github.com/nordtheme/emacs
+(use-package nord-theme)
+
+;; https://github.com/habamax/wildcharm-theme
+(use-package wildcharm-theme)
+
+;; -------------
+;; entertainment
+;; -------------
+
+;; https://github.com/isamert/empv.el
+(use-package empv)
+
+;; Text stuff
+;; ----------
+
+;; https://github.com/naiquevin/sphinx-doc.el
+(use-package sphinx-doc)
+
+;; https://github.com/Lindydancer/el2markdown
+(use-package el2markdown)
+
+;; modes replaced by treesit-langs
+;; -------------------------------
+;;
+;;    yaml-mode               ;; https://github.com/yoshiki/yaml-mode
+;;    json-mode               ;; https://github.com/json-emacs/json-mode
+;;    lua-mode                ;; https://github.com/immerrr/lua-mode
+;;    powershell              ;; https://github.com/jschaf/powershell.el
+;;    go-mode                 ;; https://melpa.org/#/go-mode
+;;    php-mode                ;; https://github.com/emacs-php/php-mode
+;;    graphql-mode            ;; https://github.com/davazp/graphql-mode
+;;    jinja2-mode             ;; https://github.com/paradoxxxzero/jinja2-mode
+;;    markdown-mode           ;; https://jblevins.org/projects/markdown-mode/
+;;    graphviz-dot-mode       ;; https://ppareit.github.io/graphviz-dot-mode/
+;;    gitconfig               ;; https://github.com/tonini/gitconfig.el
+
 
 ;; ----------------------------------------------------------------------
 ;; --- tools
@@ -464,7 +664,7 @@ FILE-NAME with the default application of the desktop system:
   "Spell checker (on/off) with selectable dictionary."
   (interactive)
   (if flyspell-mode
-    (flyspell-mode-off)
+    (flyspell--mode-off)
     (progn
       (flyspell-mode)
       (ispell-change-dictionary
@@ -479,3 +679,30 @@ FILE-NAME with the default application of the desktop system:
   "Untabify current buffer."
   (interactive)
   (untabify (point-min) (point-max)))
+
+
+;; ----------------------------------------------------------------------
+(my/setup-init)
+;; ----------------------------------------------------------------------
+
+;; https://github.com/renzmann/.emacs.d?tab=readme-ov-file#render-ascii-color-escape-codes
+(add-hook 'compilation-filter-hook #'my/display-ansi-colors)
+(add-hook 'eshell-preoutput-filter-functions  #'ansi-color-apply)
+(add-hook 'before-save-hook 'delete-trailing-whitespace)
+
+(add-hook 'text-mode-hook #'hl-line-mode)
+(add-hook 'org-mode-hook #'hl-line-mode)
+(add-hook 'prog-mode-hook #'hl-line-mode)
+
+(add-hook 'prog-mode-hook #'flymake-mode)
+(add-hook 'prog-mode-hook #'flyspell-prog-mode)
+(add-hook 'prog-mode-hook 'electric-pair-local-mode)
+(add-hook 'prog-mode-hook 'show-paren-local-mode)
+
+;; https://github.com/renzmann/.emacs.d?tab=readme-ov-file#pyright-error-links-in-compilation
+(with-eval-after-load 'compile
+  (add-to-list 'compilation-error-regexp-alist-alist
+    '(pyright "^[[:blank:]]+\\(.+\\):\\([0-9]+\\):\\([0-9]+\\).*$" 1 2 3))
+  (add-to-list 'compilation-error-regexp-alist 'pyright))
+
+;;; .emacs ends here
