@@ -1,19 +1,14 @@
 ;;; .emacs --- my local emacs setup -*- lexical-binding: t -*-
 
+;; SPDX-License-Identifier: AGPL-3.0-or-later
+;; Author: Markus Heiser <markus.heiser@darmarit.de>
+;; Keywords: dot.emacs setup
+
 ;;; Commentary:
-
-;;; Code:
-
-;; =============================================================================
-;; ~/.emacs
-;; =============================================================================
-;;
-;; MEMO:
-;;
-;;   Inferior Emacs Lisp mode --> M-x ielm
 ;;
 ;; mise-en-place: https://mise.jdx.dev/installing-mise.html
 ;;
+;;   $ mise settings set python.compile false
 ;;   $ mise use -g usage go node python shellcheck shfmt
 ;;
 ;;   Configure npm to install global executables to ~/.local/bin and the
@@ -24,8 +19,6 @@
 ;;   $ mise use -g jq # https://jqlang.org/
 ;;   $ mise use -g rust  # rustup command --> https://www.rust-lang.org/tools/install
 ;;   $ mise use -g github:kristoff-it/superhtml  # https://github.com/kristoff-it/superhtml
-;;
-;;
 ;;   ...
 ;;   $ mise self-update
 ;;   $ mise upgrade --bump  # Upgrades to latest version, bumping the version in mise.toml
@@ -59,46 +52,52 @@
 ;;   $ mise use -g shellcheck shfmt
 ;;   $ npm install -g bash-language-server
 ;;
-;; Language Servers
+;; Language Servers:
 ;;
 ;;   $ npm install -g yaml-language-server
 ;;   $ npm install -g vscode-langservers-extracted  # html css json eslint
 ;;
+;; Developer notes:
+;;
+;; - Emacs-Lisp Interpreter: M-x ielm
+;; - Format code: M-x editorconfig-format-buffer
+
+;;; Code:
 
 ;; ----------------------------------------------------------------------
 ;; https://github.com/radian-software/straight.el
 ;; ----------------------------------------------------------------------
 
+(setq package-enable-at-startup nil)
+(setq straight-use-package-by-default t)
+
 (defvar bootstrap-version)
 (let ((bootstrap-file
-       (expand-file-name
-        "straight/repos/straight.el/bootstrap.el"
-        (or (bound-and-true-p straight-base-dir)
+        (expand-file-name
+          "straight/repos/straight.el/bootstrap.el"
+          (or (bound-and-true-p straight-base-dir)
             user-emacs-directory)))
-      (bootstrap-version 7))
+       (bootstrap-version 7))
   (unless (file-exists-p bootstrap-file)
     (with-current-buffer
-        (url-retrieve-synchronously
-         "https://raw.githubusercontent.com/radian-software/straight.el/develop/install.el"
-         'silent 'inhibit-cookies)
+      (url-retrieve-synchronously
+        "https://raw.githubusercontent.com/radian-software/straight.el/develop/install.el"
+        'silent 'inhibit-cookies)
       (goto-char (point-max))
       (eval-print-last-sexp)))
   (load bootstrap-file nil 'nomessage))
 
 (straight-use-package 'use-package)
-(setq straight-use-package-by-default t)
+
 
 ;; ----------------------------------------------------------------------
-;; --- init this (my/)setup
+;; --- init my/..
 ;; ----------------------------------------------------------------------
 
 (defun my/setup-init ()
-  "Initialize my/setup.
+  "Initialize my/setup."
 
-When Emacs has been started for the first time the package directory
-does not exists .. ask to install required packages."
-
-  ;; (bash-completion-setup)
+  (bash-completion-setup)
   (my/custom-defaults)
   (my/key-bindings)
   (bookmark-bmenu-list)
@@ -107,11 +106,12 @@ does not exists .. ask to install required packages."
   )
 
 (defun my/display-ansi-colors ()
-  "Render colors in a buffer that contains ASCII color escape codes."
+  "Render colors in a buffer that contain ASCII color escape codes."
   (interactive)
   (require 'ansi-color)
   (let ((inhibit-read-only t))
     (ansi-color-apply-on-region (point-min) (point-max))))
+
 
 ;; ----------------------------------------------------------------------
 ;; --- custom settings
@@ -129,9 +129,11 @@ does not exists .. ask to install required packages."
     '(delete-selection-mode t)
     '(desktop-save-mode nil)
     '(fill-column 80)
+    '(font-use-system-font t)
     '(global-so-long-mode t)
     '(history-delete-duplicates t)
     '(inhibit-splash-screen t)
+    '(ispell-dictionary "en_US")
     '(js-indent-level 2)
     '(mouse-wheel-tilt-scroll t)
     '(quote (dired-recursive-deletes 'top))
@@ -140,7 +142,6 @@ does not exists .. ask to install required packages."
     '(show-trailing-whitespace t)
     '(tab-always-indent 'complete)
     '(use-short-answers t)
-    '(ispell-dictionary "en_US")
     ;; '(enable-dir-local-variables nil)
     )
   (load "~/.emacs-custom" t t)
@@ -164,18 +165,87 @@ does not exists .. ask to install required packages."
 ;; --- packages
 ;; ----------------------------------------------------------------------
 
+;; Emacs minibuffer configurations.
+(use-package emacs
+  :custom
+  ;; Enable context menu. `vertico-multiform-mode' adds a menu in the minibuffer
+  ;; to switch display modes.
+  (context-menu-mode t)
+  ;; Support opening new minibuffers from inside existing minibuffers.
+  (enable-recursive-minibuffers t)
+  ;; Hide commands in M-x which do not work in the current mode.  Vertico
+  ;; commands are hidden in normal buffers. This setting is useful beyond
+  ;; Vertico.
+  (read-extended-command-predicate #'command-completion-default-include-p)
+  ;; Do not allow the cursor in the minibuffer prompt
+  (minibuffer-prompt-properties
+    '(read-only t cursor-intangible t face minibuffer-prompt)))
+
+;; https://github.com/rejeep/f.el
+;;(use-package f)
+
+(use-package dired
+  :straight nil
+  :ensure nil
+  :init
+  (put 'dired-find-alternate-file 'disabled nil)
+  :bind
+  ( :map dired-mode-map
+    ("o" . ofap-dired)))
+
+;; Persist history over Emacs restarts. Vertico sorts by history position.
+(use-package savehist
+  :init
+  (savehist-mode))
+
+;; https://github.com/juergenhoetzel/emacs-totp
+(use-package totp)
+
 (use-package tab-bookmark
- :straight (:host github :repo "minad/tab-bookmark" :files (:defaults "*"))
-)
+  :straight (:host github :repo "minad/tab-bookmark")
+  )
 
+;; https://paredit.org/
+(use-package paredit)
 
+;; https://github.com/company-mode/company-mode
+(use-package company
+  :custom
+  (company-idle-delay 0) ;; how long to wait until popup
+  (company-minimum-prefix-length 1)
+  ;; (company-begin-commands nil) ;; uncomment to disable popup
+  :hook
+  (after-init . global-company-mode)
+  :bind
+  ( :map company-active-map
+    ("C-n". company-select-next)
+    ("C-p". company-select-previous)
+    ("M-<". company-select-first)
+    ("M->". company-select-last)))
+
+;; https://github.com/rainstormstudio/nerd-icons-completion
+;; At least one nerd-font must be installed
+;; - https://www.nerdfonts.com/font-downloads
+;; - voidlinux: xbps-install nerd-fonts
+;; I prefer AdwaitaMono
+;; - AdwaitaMono: https://github.com/ryanoasis/nerd-fonts/releases/latest/download/AdwaitaMono.tar.xz
+;; - DejaVuSansMono: https://github.com/ryanoasis/nerd-fonts/releases/latest/DejaVuSansMono.tar.xz
+
+(use-package nerd-icons-completion
+  :after marginalia
+  :config
+  (nerd-icons-completion-mode)
+  (add-hook 'marginalia-mode-hook #'nerd-icons-completion-marginalia-setup))
+
+;; https://github.com/minad/marginalia
+;;
 ;; Enable rich annotations using the Marginalia package
 (use-package marginalia
   ;; Bind `marginalia-cycle' locally in the minibuffer.  To make the binding
   ;; available in the *Completions* buffer, add it to the
   ;; `completion-list-mode-map'.
   :bind (:map minibuffer-local-map
-         ("M-A" . marginalia-cycle))
+          ("M-A" . marginalia-cycle))
 
   ;; The :init section is always executed.
   :init
@@ -190,57 +260,57 @@ does not exists .. ask to install required packages."
 (use-package consult
   ;; Replace bindings. Lazily loaded by `use-package'.
   :bind (;; C-c bindings in `mode-specific-map'
-         ("C-c M-x" . consult-mode-command)
-         ("C-c h" . consult-history)
-         ("C-c k" . consult-kmacro)
-         ("C-c m" . consult-man)
-         ("C-c i" . consult-info)
-         ([remap Info-search] . consult-info)
-         ;; C-x bindings in `ctl-x-map'
-         ("C-x M-:" . consult-complex-command)     ;; orig. repeat-complex-command
-         ("C-x b" . consult-buffer)                ;; orig. switch-to-buffer
-         ("C-x 4 b" . consult-buffer-other-window) ;; orig. switch-to-buffer-other-window
-         ("C-x 5 b" . consult-buffer-other-frame)  ;; orig. switch-to-buffer-other-frame
-         ("C-x t b" . consult-buffer-other-tab)    ;; orig. switch-to-buffer-other-tab
-         ("C-x r b" . consult-bookmark)            ;; orig. bookmark-jump
-         ("C-x p b" . consult-project-buffer)      ;; orig. project-switch-to-buffer
-         ;; Custom M-# bindings for fast register access
-         ("M-#" . consult-register-load)
-         ("M-'" . consult-register-store)          ;; orig. abbrev-prefix-mark (unrelated)
-         ("C-M-#" . consult-register)
-         ;; Other custom bindings
-         ("M-y" . consult-yank-pop)                ;; orig. yank-pop
-         ;; M-g bindings in `goto-map'
-         ("M-g e" . consult-compile-error)
-         ("M-g f" . consult-flymake)               ;; Alternative: consult-flycheck
-         ("M-g g" . consult-goto-line)             ;; orig. goto-line
-         ("M-g M-g" . consult-goto-line)           ;; orig. goto-line
-         ("M-g o" . consult-outline)               ;; Alternative: consult-org-heading
-         ("M-g m" . consult-mark)
-         ("M-g k" . consult-global-mark)
-         ("M-g i" . consult-imenu)
-         ("M-g I" . consult-imenu-multi)
-         ;; M-s bindings in `search-map'
-         ("M-s d" . consult-find)                  ;; Alternative: consult-fd
-         ("M-s c" . consult-locate)
-         ("M-s g" . consult-grep)
-         ("M-s G" . consult-git-grep)
-         ("M-s r" . consult-ripgrep)
-         ("M-s l" . consult-line)
-         ("M-s L" . consult-line-multi)
-         ("M-s k" . consult-keep-lines)
-         ("M-s u" . consult-focus-lines)
-         ;; Isearch integration
-         ("M-s e" . consult-isearch-history)
-         :map isearch-mode-map
-         ("M-e" . consult-isearch-history)         ;; orig. isearch-edit-string
-         ("M-s e" . consult-isearch-history)       ;; orig. isearch-edit-string
-         ("M-s l" . consult-line)                  ;; needed by consult-line to detect isearch
-         ("M-s L" . consult-line-multi)            ;; needed by consult-line to detect isearch
-         ;; Minibuffer history
-         :map minibuffer-local-map
-         ("M-s" . consult-history)                 ;; orig. next-matching-history-element
-         ("M-r" . consult-history))                ;; orig. previous-matching-history-element
+          ("C-c M-x" . consult-mode-command)
+          ("C-c h" . consult-history)
+          ("C-c k" . consult-kmacro)
+          ("C-c m" . consult-man)
+          ("C-c i" . consult-info)
+          ([remap Info-search] . consult-info)
+          ;; C-x bindings in `ctl-x-map'
+          ("C-x M-:" . consult-complex-command)     ;; orig. repeat-complex-command
+          ("C-x b" . consult-buffer)                ;; orig. switch-to-buffer
+          ("C-x 4 b" . consult-buffer-other-window) ;; orig. switch-to-buffer-other-window
+          ("C-x 5 b" . consult-buffer-other-frame)  ;; orig. switch-to-buffer-other-frame
+          ("C-x t b" . consult-buffer-other-tab)    ;; orig. switch-to-buffer-other-tab
+          ("C-x r b" . consult-bookmark)            ;; orig. bookmark-jump
+          ("C-x p b" . consult-project-buffer)      ;; orig. project-switch-to-buffer
+          ;; Custom M-# bindings for fast register access
+          ("M-#" . consult-register-load)
+          ("M-'" . consult-register-store)          ;; orig. abbrev-prefix-mark (unrelated)
+          ("C-M-#" . consult-register)
+          ;; Other custom bindings
+          ("M-y" . consult-yank-pop)                ;; orig. yank-pop
+          ;; M-g bindings in `goto-map'
+          ("M-g e" . consult-compile-error)
+          ("M-g f" . consult-flycheck)              ;; Alternative: consult-flymake
+          ("M-g g" . consult-goto-line)             ;; orig. goto-line
+          ("M-g M-g" . consult-goto-line)           ;; orig. goto-line
+          ("M-g o" . consult-outline)               ;; Alternative: consult-org-heading
+          ("M-g m" . consult-mark)
+          ("M-g k" . consult-global-mark)
+          ("M-g i" . consult-imenu)
+          ("M-g I" . consult-imenu-multi)
+          ;; M-s bindings in `search-map'
+          ("M-s d" . consult-find)                  ;; Alternative: consult-fd
+          ("M-s c" . consult-locate)
+          ("M-s g" . consult-grep)
+          ("M-s G" . consult-git-grep)
+          ("M-s r" . consult-ripgrep)
+          ("M-s l" . consult-line)
+          ("M-s L" . consult-line-multi)
+          ("M-s k" . consult-keep-lines)
+          ("M-s u" . consult-focus-lines)
+          ;; Isearch integration
+          ("M-s e" . consult-isearch-history)
+          :map isearch-mode-map
+          ("M-e" . consult-isearch-history)         ;; orig. isearch-edit-string
+          ("M-s e" . consult-isearch-history)       ;; orig. isearch-edit-string
+          ("M-s l" . consult-line)                  ;; needed by consult-line to detect isearch
+          ("M-s L" . consult-line-multi)            ;; needed by consult-line to detect isearch
+          ;; Minibuffer history
+          :map minibuffer-local-map
+          ("M-s" . consult-history)                 ;; orig. next-matching-history-element
+          ("M-r" . consult-history))                ;; orig. previous-matching-history-element
 
   ;; Enable automatic preview at point in the *Completions* buffer. This is
   ;; relevant when you use the default completion UI.
@@ -258,7 +328,7 @@ does not exists .. ask to install required packages."
 
   ;; Use Consult to select xref locations with preview
   (setq xref-show-xrefs-function #'consult-xref
-        xref-show-definitions-function #'consult-xref)
+    xref-show-definitions-function #'consult-xref)
 
   ;; Configure other variables and modes in the :config section,
   ;; after lazily loading the package.
@@ -272,13 +342,13 @@ does not exists .. ask to install required packages."
   ;; For some commands and buffer sources it is useful to configure the
   ;; :preview-key on a per-command basis using the `consult-customize' macro.
   (consult-customize
-   consult-theme :preview-key '(:debounce 0.2 any)
-   consult-ripgrep consult-git-grep consult-grep consult-man
-   consult-bookmark consult-recent-file consult-xref
-   consult--source-bookmark consult--source-file-register
-   consult--source-recent-file consult--source-project-recent-file
-   ;; :preview-key "M-."
-   :preview-key '(:debounce 0.4 any))
+    consult-theme :preview-key '(:debounce 0.2 any)
+    consult-ripgrep consult-git-grep consult-grep consult-man
+    consult-bookmark consult-recent-file consult-xref
+    consult--source-bookmark consult--source-file-register
+    consult--source-recent-file consult--source-project-recent-file
+    ;; :preview-key "M-."
+    :preview-key '(:debounce 0.4 any))
 
   ;; Optionally configure the narrowing key.
   ;; Both < and C-+ work reasonably well.
@@ -287,7 +357,13 @@ does not exists .. ask to install required packages."
   ;; Optionally make narrowing help available in the minibuffer.
   ;; You may want to use `embark-prefix-help-command' or which-key instead.
   ;; (keymap-set consult-narrow-map (concat consult-narrow-key " ?") #'consult-narrow-help)
-)
+  )
+
+;; https://github.com/minad/corfu
+;; Corfu is the minimalistic in-buffer completion counterpart of the
+;; Vertico minibuffer UI.
+;;
+;;(use-package corfu)
 
 ;; Enable Vertico.
 (use-package vertico
@@ -299,26 +375,7 @@ does not exists .. ask to install required packages."
   :init
   (vertico-mode))
 
-;; Persist history over Emacs restarts. Vertico sorts by history position.
-(use-package savehist
-  :init
-  (savehist-mode))
 
-;; Emacs minibuffer configurations.
-(use-package emacs
-  :custom
-  ;; Enable context menu. `vertico-multiform-mode' adds a menu in the minibuffer
-  ;; to switch display modes.
-  (context-menu-mode t)
-  ;; Support opening new minibuffers from inside existing minibuffers.
-  (enable-recursive-minibuffers t)
-  ;; Hide commands in M-x which do not work in the current mode.  Vertico
-  ;; commands are hidden in normal buffers. This setting is useful beyond
-  ;; Vertico.
-  (read-extended-command-predicate #'command-completion-default-include-p)
-  ;; Do not allow the cursor in the minibuffer prompt
-  (minibuffer-prompt-properties
-   '(read-only t cursor-intangible t face minibuffer-prompt)))
 
 (use-package orderless
   :custom
@@ -330,14 +387,6 @@ does not exists .. ask to install required packages."
   (completion-category-overrides '((file (styles partial-completion)))))
 
 
-(use-package dired
-  :straight nil
-  :ensure nil
-  :init
-  (put 'dired-find-alternate-file 'disabled nil)
-  :bind
-  ( :map dired-mode-map
-    ("o" . ofap-dired)))
 
 ;; https://editorconfig.org/
 (use-package editorconfig
@@ -396,19 +445,6 @@ does not exists .. ask to install required packages."
   ;; (after-init . global-mise-mode)
   )
 
-(use-package company
-  :custom
-  (company-idle-delay 0) ;; how long to wait until popup
-  (company-minimum-prefix-length 1)
-  ;; (company-begin-commands nil) ;; uncomment to disable popup
-  :hook
-  (after-init . global-company-mode)
-  :bind
-  ( :map company-active-map
-    ("C-n". company-select-next)
-    ("C-p". company-select-previous)
-    ("M-<". company-select-first)
-    ("M->". company-select-last)))
 
 ;; https://github.com/magit/magit
 (use-package magit
@@ -430,17 +466,7 @@ does not exists .. ask to install required packages."
     ("<f8>" . dap-next)
     ("<f9>" . dap-continue)))
 
-;; https://www.flycheck.org
-(use-package flycheck
-  :init (global-flycheck-mode))
-;; https://github.com/flycheck/flycheck-pos-tip
-(use-package flycheck-pos-tip)
 
-;; https://github.com/rejeep/f.el
-(use-package f)
-
-;; https://github.com/minad/corfu
-(use-package corfu)
 
 ;; https://github.com/purcell/elisp-slime-nav
 (use-package elisp-slime-nav)
@@ -485,8 +511,6 @@ does not exists .. ask to install required packages."
 ;; https://github.com/szermatt/emacs-bash-completion
 (use-package bash-completion)
 
-;; https://paredit.org/
-(use-package paredit)
 
 ;; https://github.com/emacs-php/apache-mode
 (use-package apache-mode)
@@ -506,8 +530,8 @@ does not exists .. ask to install required packages."
 
 ;; https://github.com/emacs-tree-sitter/treesit-langs
 (use-package treesit-langs
- :straight (:host github :repo "emacs-tree-sitter/treesit-langs" :files (:defaults "*"))
-)
+  :straight (:host github :repo "emacs-tree-sitter/treesit-langs" :files (:defaults "*"))
+  )
 ;; https://github.com/kiennq/treesit-langs
 ;; (use-package treesit-langs
 ;;   :straight (:host github :repo "kiennq/treesit-langs" :files (:defaults "*"))
@@ -524,8 +548,6 @@ does not exists .. ask to install required packages."
   :config
   (require 'eglot)
   (setq python-check-command "uv run ruff format && uv run ruff check --fix")
-  ;;(add-hook 'python-mode-hook #'flymake-mode)
-  ;;(add-hook 'python-ts-mode-hook #'flymake-mode)
   )
 
 ;; https://github.com/wyuenho/emacs-pet
@@ -567,6 +589,33 @@ does not exists .. ask to install required packages."
   )
 
 
+;; ------------------
+;; FlyMake / FlyCheck
+;; ------------------
+
+;; I prefer flycheck over flymake-mode
+;; (add-hook 'prog-mode-hook #'flymake-mode)
+;;
+;; https://www.flycheck.org
+(use-package flycheck
+  :init
+  (global-flycheck-mode)
+  (setq-default flycheck-disabled-checkers '(python-ruff))
+  :config
+  )
+
+;; https://github.com/flycheck/flycheck-pos-tip
+(use-package flycheck-pos-tip
+  :after flycheck
+  :config (flycheck-pos-tip-mode 1))
+
+;; https://github.com/flycheck/flycheck-eglot
+(use-package flycheck-eglot
+  ;; :straight (:host github :repo "flycheck/flycheck-eglot" upgrade: t)
+  :after (flycheck eglot)
+  :config (global-flycheck-eglot-mode 1))
+
+
 
 ;; ------------
 ;; Dictionaries
@@ -582,11 +631,37 @@ does not exists .. ask to install required packages."
 ;; eye candy
 ;; ---------
 
+;; M-x consult-theme
+
+;; https://github.com/LionyxML/auto-dark-emacs
+(use-package auto-dark
+  :custom
+  ;; https://github.com/protesilaos/modus-themes (built into GNU Emacs 28)
+  (auto-dark-themes '((modus-vivendi) (modus-operandi)))
+  (auto-dark-polling-interval-seconds 5)
+  (auto-dark-allow-osascript nil)
+  (auto-dark-allow-powershell nil)
+  ;; (auto-dark-detection-method nil) ;; dangerous to be set manually
+  :hook
+  (auto-dark-dark-mode
+    . (lambda ()
+        ;; something to execute when dark mode is detected
+        ))
+  (auto-dark-light-mode
+    . (lambda ()
+        ;; something to execute when light mode is detected
+        ))
+  :init (auto-dark-mode))
+
+;; https://github.com/bbatsov/solarized-emacs
+(use-package solarized-theme)
+
 ;; https://github.com/nordtheme/emacs
 (use-package nord-theme)
 
 ;; https://github.com/habamax/wildcharm-theme
 (use-package wildcharm-theme)
+
 
 ;; -------------
 ;; entertainment
@@ -694,7 +769,6 @@ FILE-NAME with the default application of the desktop system:
 (add-hook 'org-mode-hook #'hl-line-mode)
 (add-hook 'prog-mode-hook #'hl-line-mode)
 
-(add-hook 'prog-mode-hook #'flymake-mode)
 (add-hook 'prog-mode-hook #'flyspell-prog-mode)
 (add-hook 'prog-mode-hook 'electric-pair-local-mode)
 (add-hook 'prog-mode-hook 'show-paren-local-mode)

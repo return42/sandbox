@@ -1,6 +1,24 @@
-# ============================================================================
-# ~/.bashrc
-# ============================================================================
+# -*- mode: sh; sh-shell: bash -*-
+
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Author: Markus Heiser <markus.heiser@darmarit.de>
+# Keywords: dot.bashrc bashrc
+
+### Commentary:
+#
+# My local bash setup.
+#
+# Install:
+#
+#   $ cd src/dot.files/
+#   $ ln -s "$PWD/.bashrc" "$HOME/"
+#
+# Developer notes:
+#
+#   $ shfmt -i 4 -w .bashrc
+#   $ shellcheck .bashrc
+
+### Code:
 
 pathadd() {
     if [ -d "$1" ] && [[ ":$PATH:" != *":$1:"* ]]; then
@@ -34,27 +52,27 @@ alias la='ls -A'
 alias l='ls -CF'
 
 case "$TERM" in
-    xterm-color|*-256color)
-        PS1='\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '
-        alias ls='ls --color=auto'
-        #alias dir='dir --color=auto'
-        #alias vdir='vdir --color=auto'
-        alias grep='grep --color=auto'
-        alias fgrep='fgrep --color=auto'
-        alias egrep='egrep --color=auto'
-        ;;
+xterm-color | *-256color)
+    PS1='\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '
+    alias ls='ls --color=auto'
+    #alias dir='dir --color=auto'
+    #alias vdir='vdir --color=auto'
+    alias grep='grep --color=auto'
+    alias fgrep='fgrep --color=auto'
+    alias egrep='egrep --color=auto'
+    ;;
 esac
 
 # -----------------------------------------------------------------------
 # --- https://github.com/scop/bash-completion#readme
 # -----------------------------------------------------------------------
 
-if [[ $- == *i* ]] ; then
-  if [ -f /usr/share/bash-completion/bash_completion ]; then
-    . /usr/share/bash-completion/bash_completion
-  elif [ -f /etc/bash_completion ]; then
-    . /etc/bash_completion
-  fi
+if [[ $- == *i* ]]; then
+    if [ -f /usr/share/bash-completion/bash_completion ]; then
+        . /usr/share/bash-completion/bash_completion
+    elif [ -f /etc/bash_completion ]; then
+        . /etc/bash_completion
+    fi
 fi
 
 # -----------------------------------------------------------------------
@@ -107,7 +125,6 @@ git.global.setup() {
     # usage:
     #    git.setup
 
-
     local _DEFAULT
     local _MAIL
     local _setup
@@ -115,9 +132,9 @@ git.global.setup() {
     echo
 
     # _DEFAULT=$(git config --global user.name)
-    if [[ ( -z "$_DEFAULT" ) && ( $(which "getent") ) ]] ; then
+    if [[ (-z "$_DEFAULT") && ($(which "getent")) ]]; then
         _DEFAULT="$(getent passwd "$USER" | cut -d ':' -f 5)"
-        _DEFAULT="${_DEFAULT//,}"
+        _DEFAULT="${_DEFAULT//,/}"
     fi
 
     read -r -p "Specify your (git) 'First-Name Last-Name': [$_DEFAULT]" _READ
@@ -125,7 +142,7 @@ git.global.setup() {
     git config --global user.name "${_NAME}"
 
     _DEFAULT=$(git config --global user.email)
-    if [[ -z "$_DEFAULT" ]] ; then
+    if [[ -z "$_DEFAULT" ]]; then
         _DEFAULT=$(id -un)@$(hostname -f)
     fi
     read -r -p "Specify your (git) e-Mail address: [$_DEFAULT] " _READ
