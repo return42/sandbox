@@ -232,6 +232,19 @@
     ("M-<". company-select-first)
     ("M->". company-select-last)))
 
+;; https://github.com/bbatsov/projectile
+(use-package projectile
+  ;; :init
+  ;; (setq projectile-project-search-path '("~/projects/" "~/work/" "~/playground"))
+  :config
+  (projectile-mode +1)
+  :bind
+  ( :map global-map
+    ("C-c p" . projectile-command-map)
+    :map projectile-mode-map
+    ("C-c p" . projectile-command-map))
+)
+
 ;; https://github.com/minad/marginalia
 ;;
 ;; Enable rich annotations using the Marginalia package
@@ -633,6 +646,7 @@
 ;; https://github.com/isamert/empv.el
 (use-package empv)
 
+;; ----------
 ;; Text stuff
 ;; ----------
 
