@@ -1,11 +1,14 @@
 #!/usr/bin/env python
 
-import sys
 import hashlib
 import http.client
 import lzma
-import pathlib
+import os
 import platform
+import shutil
+import stat
+import subprocess
+import sys
 
 from urllib.parse import urlparse, ParseResult
 
@@ -79,6 +82,39 @@ def tick():
     _ = sys.stderr.write(f"{next(ticker)}\b")
     _ = sys.stderr.flush()
 
+def sh_exec(script: str) -> tuple[int, str]:
+    """Execute shell script in a subprocess and return a tuple with output and
+    return code from sh."""
+    msg: str = ""
+    err: int = 0
+    try:
+        msg = subprocess.check_output(script, stderr=subprocess.STDOUT, shell=True).decode()
+    except subprocess.CalledProcessError as exc:
+        msg = (exc.output or b"").decode().strip()
+        err = exc.returncode
+    return err, msg
+
+def linux_useradd(
+        login: str,
+        shell: str = "/bin/bash",
+        home_dir: str = "",
+        comment: str = "",
+        system: bool = False,
+) -> tuple[int, str]:
+    useradd = [f"""useradd --shell {shell}""", ]
+    if home_dir:
+        useradd.append(f'--home-dir "{home_dir}"')
+    if comment:
+        useradd.append(f"--comment '{comment}'")
+    useradd.append(f"'{login}'")
+    return sh_exec(" ".join(useradd))
+
+# Forgejo: Installation from binary
+# =================================
+#
+# - https://forgejo.org/docs/latest/admin/installation/binary/
+#
+
 class CFG:
     VERSION: str = "13.0.3"
     DOWNLOAD_HOST: str = "codeberg.org"
@@ -87,9 +123,21 @@ class CFG:
     XZ_URL: str = f"https://{DOWNLOAD_HOST}/forgejo/forgejo/releases/download/v{VERSION}/{DOWNLOAD_FNAME}.xz"
     XZ_SHA256_URL: str = f"https://{DOWNLOAD_HOST}/forgejo/forgejo/releases/download/v{VERSION}/{DOWNLOAD_FNAME}.xz.sha256"
     CHUNK_SIZE: int = 1024 * 1024
-
+    BIN_FORGEJO = "/usr/local/bin/forgejo"
 
 download_forgejo_bin(f"/tmp/{CFG.DOWNLOAD_FNAME}")
+shutil.move(f"/tmp/{CFG.DOWNLOAD_FNAME}", CFG.BIN_FORGEJO)
 
-# TODO: install bin and systemd
+CHMOD_RWXR_XR_X = (
+    stat.S_IRWXU |  # User read, write, execute
+    stat.S_IRGRP |  # Group read
+    stat.S_IXGRP |  # Group execute
+    stat.S_IROTH |  # Others read
+    stat.S_IXOTH    # Others execute
+)
+
+# Set permissions: rwxr-xr-x
+os.chmod(CFG.BIN_FORGEJO, CHMOD_RWXR_XR_X)
+
+# TODO: install systemd
 # - https://forgejo.org/docs/latest/admin/installation/binary/
