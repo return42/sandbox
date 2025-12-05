@@ -1,11 +1,17 @@
 #!/usr/bin/env python
 
-import sys
+import typing as t
+
 import hashlib
 import http.client
 import lzma
-import pathlib
+import os
 import platform
+import shutil
+import stat
+import subprocess
+import sys
+import functools
 
 from urllib.parse import urlparse, ParseResult
 
@@ -20,6 +26,7 @@ def forgejo_arch() -> str:
         return "arm-6"
     raise ValueError(f"no binary for {m} available at https://codeberg.org/forgejo/forgejo/releases")
 
+
 def get_http_client(url: ParseResult) -> http.client.HTTPConnection :
     if url.scheme == 'https':
         client = http.client.HTTPSConnection(url.netloc)
@@ -29,6 +36,7 @@ def get_http_client(url: ParseResult) -> http.client.HTTPConnection :
         raise ValueError(f"Unsupported URL scheme: {url.scheme}")
     return client
 
+
 def get_response(url: str) -> http.client.HTTPResponse:
     parsed_url = urlparse(url)
     client = get_http_client(parsed_url)
@@ -37,8 +45,8 @@ def get_response(url: str) -> http.client.HTTPResponse:
     print(f"download status: {resp.status}, reason: {resp.reason} <-- GET {url}")
     return resp
 
-def download_forgejo_bin(save_path: str):
 
+def download_forgejo_bin(save_path: str):
     # fetch hash value
     resp = get_response(CFG.XZ_SHA256_URL)
     sha256 = resp.read().decode().split()[0]
@@ -67,6 +75,7 @@ def download_forgejo_bin(save_path: str):
                 tick()
                 _ = dst.write(chunk)
 
+# tick
 
 def _ticker():
     while True:
@@ -79,6 +88,284 @@ def tick():
     _ = sys.stderr.write(f"{next(ticker)}\b")
     _ = sys.stderr.flush()
 
+
+def sh_exec(script: str) -> tuple[int, str]:
+    """Execute shell script in a subprocess and return a tuple with output and
+    return code from sh."""
+    msg: str = ""
+    err: int = 0
+    try:
+        msg = subprocess.check_output(script, stderr=subprocess.STDOUT, shell=True).decode()
+    except subprocess.CalledProcessError as exc:
+        msg = (exc.output or b"").decode().strip()
+        err = exc.returncode
+    return err, msg
+
+def linux_useradd(
+        login: str,
+        shell: str = "/bin/bash",
+        home_dir: str = "",
+        comment: str = "",
+        system: bool = False,
+) -> tuple[int, str]:
+    useradd = [f"""useradd --shell {shell}""", ]
+    if home_dir:
+        useradd.append(f'--home-dir "{home_dir}"')
+    if comment:
+        useradd.append(f"--comment '{comment}'")
+    useradd.append(f"'{login}'")
+    return sh_exec(" ".join(useradd))
+
+import pathlib
+
+class Dist:
+
+    OS_RELEASE: pathlib.Path = pathlib.Path("/etc/os-release")
+    """Operating system identification.
+
+    The basic file format of os-release is a newline-separated list of
+    environment-like shell-compatible variable assignments. It is possible to
+    source the configuration from shell scripts, however, beyond mere variable
+    assignments, no shell features are supported (this means variable expansion
+    is explicitly not supported), allowing applications to read the file without
+    implementing a shell compatible execution engine (os-release_).
+
+    .. _os-release: https://www.linux.org/docs/man5/os-release.html
+
+    """
+
+    def init(self):
+
+        # The file /etc/os-release takes precedence over /usr/lib/os-release
+        # Applications should check for the former and only fall back to
+        # ``/usr/lib/os-release`` if it is missing.
+        if not self.OS_RELEASE.exists():
+            self.OS_RELEASE = pathlib.Path("/usr/lib/os-release")  # pyright: ignore[reportConstantRedefinition]
+            if not self.OS_RELEASE.exists():
+                raise FileNotFoundError("can't find /etc/os-release nor /usr/lib/os-release")
+
+    @property
+    def NAME(self) -> str:
+        """A string identifying the operating system, without a version
+        component."""
+        return self.os().get("NAME", "Linux")
+
+    @property
+    def VERSION(self) -> str | None:
+        """A string identifying the operating system version, excluding any OS
+        name information"""
+        return self.os().get("VERSION")
+
+    @property
+    def VERSION_ID(self) -> str | None:
+        """Lower-case string identifying the operating system version, excluding
+        any OS name information or release code name, and suitable for
+        processing by scripts.
+        """
+        return self.os().get("VERSION_ID")
+
+    @property
+    def ID(self) -> str:
+        """Lower-case string identifying the operating system, excluding any
+        version information and suitable for processing by scripts.
+        """
+        return self.os().get("ID", "linux")
+
+    @property
+    def ID_LIKE(self) -> str | None:
+        """Similarities with other distributions."""
+        return self.os().get("ID_LIKE")
+
+    @property
+    def PRETTY_NAME(self) -> str | None:
+        """A pretty operating system name in a format suitable for presentation
+        to the user."""
+        return self.os().get("PRETTY_NAME")
+
+    @property
+    def ANSI_COLOR(self) -> str:
+        """A suggested presentation color when showing the OS name on the
+        console, suitable for inclusion in the ANSI/ECMA-48 escape code.
+        """
+        return self.os().get("ANSI_COLOR", "")
+
+    @property
+    def CPE_NAME(self) -> str | None:
+        """A CPE_ name for the operating system.
+
+        .. _CPE: https://cpe.mitre.org/specification/
+        """
+        return self.os().get("CPE_NAME")
+
+    @property
+    def HOME_URL(self) -> str | None:
+        """Link to resource on the Internet related the operating system."""
+        return self.os().get("HOME_URL")
+
+    @property
+    def SUPPORT_URL(self) -> str | None:
+        """Link to resource on the Internet related the operating system."""
+        return self.os().get("SUPPORT_URL")
+
+    @property
+    def BUG_REPORT_URL(self) -> str | None:
+        """Link to resource on the Internet related the operating system."""
+        return self.os().get("BUG_REPORT_URL")
+
+    @property
+    def PRIVACY_POLICY_URL(self) -> str | None:
+        """Link to resource on the Internet related the operating system."""
+        return self.os().get("PRIVACY_POLICY_URL")
+
+    @property
+    def BUILD_ID(self) -> str | None:
+        """A string uniquely identifying the system image used as the origin for
+        a distribution.
+        """
+        return self.os().get("BUILD_ID")
+
+    @property
+    def VARIANT(self) -> str | None:
+        """A string identifying a specific variant or edition of the operating
+        system suitable for presentation to the user.
+        """
+        return self.os().get("VARIANT")
+
+    @property
+    def VARIANT_ID(self) -> str | None:
+        """A lower-case string, identifying a specific variant or edition of
+        the operating system.
+        """
+        return self.os().get("VARIANT_ID")
+
+    @functools.cache
+    def os(self) -> dict[str,str]:
+        """Returns OS distribution data from /etc/os-release"""
+        os_data: dict[str, str] = {}
+        f_name = "/etc/os-release"
+        if not os.path.exists(f_name):
+            return os_data
+
+        with open(f_name) as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith("#"):
+                    continue
+                if line.strip() and not line.startswith('#'):
+                    key, value = line.split('=', 1)
+                    os_data[key.strip()] = value.strip().strip('"')
+
+        return os_data
+
+    @functools.cache
+    def pkg_manager(self, default: str = "apt") -> str:
+        tool2dists = {
+            "apt" : ("ubuntu", "debian"),
+            # "yum": ("centos", "rhel"),
+            "dnf": ("centos", "rhel", "fedora"),
+            "pacman": ("arch", ),
+            "zypper": ("opensuse", ),
+            "xbps": ("void", ),
+            "apk": ("alpine", ),
+        }
+        for tool, dists in tool2dists.items():
+            if self.ID in dists:
+                return tool
+        return default
+
+    def pkg_install(self, pkg_list: list[str] | str, batch: bool = True):
+        script: list[str]= [
+            "#!/bin/bash",
+        ]
+        if isinstance(pkg_list, list):
+            pkg_list = " ".join(pkg_list)
+
+        pkg_cmd = self.pkg_manager()
+
+        # prepare package managers
+
+        if pkg_cmd == "apt":
+            script.append(f"{pkg_cmd} update")
+
+        # install packages
+
+        if pkg_cmd in ("apt", "yum", "dnf", "zypper"):
+            batch_opt = "-y" if batch else ""
+            script.append(f"{pkg_cmd} install {batch_opt} {pkg_list}")
+
+        elif pkg_cmd == "xbps":
+            batch_opt = "-y" if batch else ""
+            script.append(f"{pkg_cmd}-install {batch_opt} {pkg_list}")
+
+        elif pkg_cmd == "pacman":
+            batch_opt = "-y --noconfirm" if batch else ""
+            script.append(f"{pkg_cmd} -S {batch_opt} {pkg_list}")
+
+        elif pkg_cmd == "apk":
+            batch_opt = "" if batch else "-i"
+            script.append(f"{pkg_cmd} {batch_opt} add {pkg_list}")
+
+
+
+
+
+
+PkgManagerType = t.Literal["apt", "yum", "dnf", "pacman", "zypper"] | None
+
+@functools.cache
+def linux_pkg_manager() -> PkgManagerType:
+    f_name = "/etc/os-release"
+    if not os.path.exists(f_name):
+        return None
+
+    with open(f_name) as f:
+        for line in f:
+            if not line.startswith("ID="):
+                continue
+            distro_id = line.split("=")[1].strip().strip('"')
+            if distro_id in ("ubuntu", "debian"):
+                return "apt"
+            elif distro_id in ("centos", "rhel"):
+                return "yum"
+            elif distro_id == "fedora":
+                return "dnf"
+            elif distro_id == "arch":
+                return "pacman"
+            elif distro_id == "opensuse":
+                return "zypper"
+            else:
+                return None
+    return None
+
+
+
+
+
+# Forgejo: Installation from binary
+# =================================
+#
+# - https://forgejo.org/docs/latest/admin/installation/binary/
+#
+
+CHMOD_RWXR_XR_X = (
+    stat.S_IRWXU |  # User read, write, execute
+    stat.S_IRGRP |  # Group read
+    stat.S_IXGRP |  # Group execute
+    stat.S_IROTH |  # Others read
+    stat.S_IXOTH    # Others execute
+)
+
+def install():
+    download_forgejo_bin(f"/tmp/{CFG.DOWNLOAD_FNAME}")
+    shutil.move(f"/tmp/{CFG.DOWNLOAD_FNAME}", CFG.BIN_FORGEJO)
+    # Set permissions: rwxr-xr-x
+    os.chmod(CFG.BIN_FORGEJO, CHMOD_RWXR_XR_X)
+
+    # TODO: install systemd
+    # - https://forgejo.org/docs/latest/admin/installation/binary/
+
+    return 0
+
 class CFG:
     VERSION: str = "13.0.3"
     DOWNLOAD_HOST: str = "codeberg.org"
@@ -87,9 +374,12 @@ class CFG:
     XZ_URL: str = f"https://{DOWNLOAD_HOST}/forgejo/forgejo/releases/download/v{VERSION}/{DOWNLOAD_FNAME}.xz"
     XZ_SHA256_URL: str = f"https://{DOWNLOAD_HOST}/forgejo/forgejo/releases/download/v{VERSION}/{DOWNLOAD_FNAME}.xz.sha256"
     CHUNK_SIZE: int = 1024 * 1024
+    BIN_FORGEJO = "/usr/local/bin/forgejo"
 
+exit_code = 42
+try:
+    exit_code = install()
+except PermissionError as exc:
+    print(f"ERROR: {exc}", file=sys.stderr)
 
-download_forgejo_bin(f"/tmp/{CFG.DOWNLOAD_FNAME}")
-
-# TODO: install bin and systemd
-# - https://forgejo.org/docs/latest/admin/installation/binary/
+sys.exit(exit_code)
