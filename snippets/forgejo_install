@@ -1,0 +1,95 @@
+#!/usr/bin/env python
+
+import sys
+import hashlib
+import http.client
+import lzma
+import pathlib
+import platform
+
+from urllib.parse import urlparse, ParseResult
+
+
+def forgejo_arch() -> str:
+    m = platform.machine()
+    if m in ["x86_64"]:
+        return "amd64"
+    if m in ["armv8", "aarch64"]:
+        return "arm64"
+    if m in ["armv6", "armv7l"]:
+        return "arm-6"
+    raise ValueError(f"no binary for {m} available at https://codeberg.org/forgejo/forgejo/releases")
+
+def get_http_client(url: ParseResult) -> http.client.HTTPConnection :
+    if url.scheme == 'https':
+        client = http.client.HTTPSConnection(url.netloc)
+    elif url.scheme == 'http':
+        client = http.client.HTTPConnection(url.netloc)
+    else:
+        raise ValueError(f"Unsupported URL scheme: {url.scheme}")
+    return client
+
+def get_response(url: str) -> http.client.HTTPResponse:
+    parsed_url = urlparse(url)
+    client = get_http_client(parsed_url)
+    client.request("GET", parsed_url.path)
+    resp = client.getresponse()
+    print(f"download status: {resp.status}, reason: {resp.reason} <-- GET {url}")
+    return resp
+
+def download_forgejo_bin(save_path: str):
+
+    # fetch hash value
+    resp = get_response(CFG.XZ_SHA256_URL)
+    sha256 = resp.read().decode().split()[0]
+
+    # download file
+    xz_name = f"{save_path}.xz"
+    print(f"download: {xz_name} from {CFG.XZ_URL}")
+    resp = get_response(CFG.XZ_URL)
+    hash = hashlib.sha256()
+
+    with open(xz_name, "wb") as f:
+        while chunk := resp.read(CFG.CHUNK_SIZE):
+            tick()
+            _ = f.write(chunk)
+            hash.update(chunk)
+
+    # check hash value
+    if hash.hexdigest() != sha256:
+        raise ValueError(f"hash value mismatch: expected {sha256} <--> got {hash.digest()} from {xz_name}")
+
+    print(f"uncopress XZ -> {save_path}")
+    with lzma.open(xz_name) as src:
+        # extract to final file in: save_path
+        with open(save_path, "wb") as dst:
+            while chunk := src.read(CFG.CHUNK_SIZE):
+                tick()
+                _ = dst.write(chunk)
+
+
+def _ticker():
+    while True:
+        for item in ["|", "/", "-", "\\"]:
+            yield item
+
+ticker = _ticker()
+
+def tick():
+    _ = sys.stderr.write(f"{next(ticker)}\b")
+    _ = sys.stderr.flush()
+
+class CFG:
+    VERSION: str = "13.0.3"
+    DOWNLOAD_HOST: str = "codeberg.org"
+    ARCH: str = forgejo_arch()
+    DOWNLOAD_FNAME: str = f"forgejo-{VERSION}-linux-{ARCH}"
+    XZ_URL: str = f"https://{DOWNLOAD_HOST}/forgejo/forgejo/releases/download/v{VERSION}/{DOWNLOAD_FNAME}.xz"
+    XZ_SHA256_URL: str = f"https://{DOWNLOAD_HOST}/forgejo/forgejo/releases/download/v{VERSION}/{DOWNLOAD_FNAME}.xz.sha256"
+    CHUNK_SIZE: int = 1024 * 1024
+
+
+download_forgejo_bin(f"/tmp/{CFG.DOWNLOAD_FNAME}")
+
+# TODO: install bin and systemd
+# - https://forgejo.org/docs/latest/admin/installation/binary/
